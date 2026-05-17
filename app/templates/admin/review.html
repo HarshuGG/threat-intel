@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Review {{ cve.cve_id }} — Admin{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="/admin" class="text-secondary">Admin</a></li>
+        <li class="breadcrumb-item active text-info">Review {{ cve.cve_id }}</li>
+      </ol>
+    </nav>
+    <h4 class="mb-0 fw-semibold">{{ cve.cve_id }}</h4>
+  </div>
+  <div class="d-flex gap-2">
+    <span class="badge bg-{{ severity_color(cve.severity) }} fs-6">{{ cve.severity or 'N/A' }}</span>
+    {% if cve.cvss_score %}<span class="badge bg-dark border border-secondary fs-6">CVSS {{ "%.1f"|format(cve.cvss_score) }}</span>{% endif %}
+    {% if cve.exploited_in_wild %}<span class="badge bg-danger fs-6"><i class="bi bi-lightning-fill"></i> Exploited</span>{% endif %}
+    {% if cve.cisa_kev %}<span class="badge bg-info text-dark fs-6">CISA KEV</span>{% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-8">
+
+    <!-- AI Summary -->
+    {% if cve.ai_summary %}
+    <div class="alert alert-dark border-info mb-4">
+      <h6 class="alert-heading text-info mb-2"><i class="bi bi-robot"></i> AI Summary</h6>
+      <p class="mb-0">{{ cve.ai_summary }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Description -->
+    <div class="section-card rounded-3 p-4 mb-4">
+      <h6 class="text-muted text-uppercase mb-2" style="font-size:.75rem;letter-spacing:.1em">Description</h6>
+      <p class="text-light mb-0" style="line-height:1.7">{{ cve.description or 'N/A' }}</p>
+    </div>
+
+    <!-- MITRE -->
+    {% if cve.mitre_techniques %}
+    <div class="section-card rounded-3 p-4 mb-4">
+      <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.1em">MITRE ATT&CK</h6>
+      {% for t in cve.mitre_techniques %}
+      <div class="mitre-card rounded-3 p-3 mb-2">
+        <a href="{{ t.url }}" target="_blank" class="text-info fw-bold text-decoration-none">{{ t.id }}</a>
+        <span class="text-light ms-2">{{ t.name }}</span>
+        <span class="badge bg-dark border border-secondary text-muted ms-2 small">{{ t.tactic }}</span>
+        <p class="text-muted small mt-1 mb-0">{{ t.description }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Attack Vectors -->
+    {% if cve.attack_vectors %}
+    <div class="section-card rounded-3 p-4 mb-4">
+      <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.1em">Attack Chain</h6>
+      {% for step in cve.attack_vectors %}
+      <div class="d-flex gap-3 mb-3">
+        <div class="step-number">{{ step.step }}</div>
+        <div>
+          <span class="badge bg-dark border border-warning text-warning small">{{ step.phase }}</span>
+          <p class="text-light small mt-1 mb-0">{{ step.description }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- IOCs -->
+    {% if cve.iocs %}
+    <div class="section-card rounded-3 p-4 mb-4">
+      <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.1em">IOCs</h6>
+      {% for ioc in cve.iocs %}
+      <div class="d-flex align-items-start gap-3 mb-2">
+        <span class="badge bg-dark border border-secondary text-muted">{{ ioc.type }}</span>
+        <code class="text-warning small">{{ ioc.value }}</code>
+        <span class="text-muted small">{{ ioc.description }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Remediation -->
+    {% if cve.remediation %}
+    <div class="section-card rounded-3 p-4 mb-4">
+      <h6 class="text-muted text-uppercase mb-2" style="font-size:.75rem;letter-spacing:.1em">Remediation</h6>
+      <div class="text-light small" style="white-space:pre-line;line-height:1.7">{{ cve.remediation }}</div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Sidebar -->
+  <div class="col-12 col-lg-4">
+
+    <!-- Approve / Reject actions -->
+    <div class="section-card rounded-3 p-4 mb-4">
+      <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.1em">Publish Decision</h6>
+
+      <form method="post" action="/admin/approve/{{ cve.cve_id }}" class="mb-3">
+        <div class="mb-2">
+          <label class="form-label small text-muted">Review notes (optional)</label>
+          <textarea class="form-control form-control-sm bg-dark text-light border-secondary" name="notes" rows="2" placeholder="Add internal notes..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-success w-100">
+          <i class="bi bi-check-lg"></i> Approve & Publish
+        </button>
+      </form>
+
+      <form method="post" action="/admin/reject/{{ cve.cve_id }}">
+        <div class="mb-2">
+          <textarea class="form-control form-control-sm bg-dark text-light border-secondary" name="notes" rows="2" placeholder="Reason for rejection..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-outline-danger w-100">
+          <i class="bi bi-x-lg"></i> Reject
+        </button>
+      </form>
+
+      {% if not cve.enriched_at %}
+      <hr class="border-secondary">
+      <button class="btn btn-outline-warning w-100" onclick="enrichThis()">
+        <i class="bi bi-robot"></i> Re-run Enrichment
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Facts -->
+    <div class="section-card rounded-3 p-4 mb-4">
+      <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.1em">Details</h6>
+      <table class="table table-dark table-sm mb-0">
+        <tbody>
+          <tr><td class="text-muted small">Status</td><td><span class="badge bg-warning text-dark">{{ cve.status }}</span></td></tr>
+          <tr><td class="text-muted small">Published</td><td class="small text-light">{{ cve.published_date.strftime('%Y-%m-%d') if cve.published_date else '—' }}</td></tr>
+          <tr><td class="text-muted small">Enriched</td><td class="small">{% if cve.enriched_at %}<span class="text-success">{{ cve.enriched_at.strftime('%Y-%m-%d') }}</span>{% else %}<span class="text-muted">No</span>{% endif %}</td></tr>
+          <tr><td class="text-muted small">Source</td><td><a href="{{ cve.source_url }}" target="_blank" class="text-secondary small">NVD <i class="bi bi-box-arrow-up-right" style="font-size:.65rem"></i></a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Affected Products -->
+    {% if cve.affected_products %}
+    <div class="section-card rounded-3 p-4 mb-4">
+      <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem;letter-spacing:.1em">Affected Products</h6>
+      {% for p in cve.affected_products[:8] %}
+      <div class="small text-light mb-1">
+        <i class="bi bi-box text-secondary"></i> {{ p.vendor }} / <strong>{{ p.product }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <a href="/admin" class="btn btn-outline-secondary w-100">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function enrichThis() {
+  const r = await fetch('/admin/enrich/{{ cve.cve_id }}', {method:'POST'});
+  alert('Enrichment started. Refresh in a few seconds.');
+}
+</script>
+{% endblock %}

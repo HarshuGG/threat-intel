@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block title %}{{ cve.cve_id }} — {{ site_name }}{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-4">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/" style="color:var(--text-3)">Home</a></li>
+    <li class="breadcrumb-item"><a href="/cves" style="color:var(--text-3)">CVEs</a></li>
+    <li class="breadcrumb-item active mono" style="color:var(--cyan)">{{ cve.cve_id }}</li>
+  </ol>
+</nav>
+
+<!-- Header -->
+<div class="d-flex flex-wrap gap-3 align-items-start mb-4">
+  <div class="flex-grow-1">
+    <h2 class="fw-bold mb-2 mono" style="color:var(--text-1);letter-spacing:-.01em;">{{ cve.cve_id }}</h2>
+    <div class="d-flex gap-2 flex-wrap">
+      <span class="badge bg-{{ severity_color(cve.severity) }}" style="font-size:.8rem;padding:.35rem .65rem;">{{ cve.severity or 'N/A' }}</span>
+      {% if cve.cvss_score %}
+      <span class="badge bg-dark" style="font-size:.8rem;padding:.35rem .65rem;">CVSS {{ "%.1f"|format(cve.cvss_score) }}</span>
+      {% endif %}
+      {% if cve.exploited_in_wild %}
+      <span class="badge bg-danger" style="font-size:.8rem;padding:.35rem .65rem;"><i class="bi bi-lightning-fill me-1"></i>Actively Exploited</span>
+      {% endif %}
+      {% if cve.cisa_kev %}
+      <span class="badge bg-info" style="font-size:.8rem;padding:.35rem .65rem;"><i class="bi bi-shield-fill-check me-1"></i>CISA KEV</span>
+      {% endif %}
+      {% if cve.poc_available %}
+      <span class="badge bg-warning" style="font-size:.8rem;padding:.35rem .65rem;"><i class="bi bi-code-slash me-1"></i>PoC Available</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="text-end" style="font-size:.8rem;color:var(--text-3);">
+    <div><i class="bi bi-calendar3 me-1"></i>Published: <span style="color:var(--text-2);">{{ cve.published_date.strftime('%Y-%m-%d') if cve.published_date else 'N/A' }}</span></div>
+    <div class="mt-1"><i class="bi bi-arrow-clockwise me-1"></i>Modified: <span style="color:var(--text-2);">{{ cve.modified_date.strftime('%Y-%m-%d') if cve.modified_date else 'N/A' }}</span></div>
+    {% if cve.enrichment_source %}
+    <div class="mt-2">
+      <span class="badge bg-dark"><i class="bi bi-robot me-1"></i>Enriched via {{ cve.enrichment_source }}</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- AI Summary -->
+{% if cve.ai_summary %}
+<div class="alert alert-dark border-info mb-4">
+  <h6 class="mb-2" style="color:var(--cyan);"><i class="bi bi-robot me-2"></i>AI Threat Summary</h6>
+  <p class="mb-0" style="color:var(--text-2);line-height:1.7;">{{ cve.ai_summary }}</p>
+</div>
+{% elif not cve.enriched_at %}
+<div class="alert alert-dark border-warning mb-4">
+  <h6 class="mb-1" style="color:var(--orange);"><i class="bi bi-hourglass-split me-2"></i>Threat Intelligence Pending</h6>
+  <p class="mb-0 small" style="color:var(--text-3);">IOCs, MITRE ATT&CK techniques, and attack chain data are being generated. Refresh in a few seconds.</p>
+</div>
+{% endif %}
+
+<div class="row g-4">
+
+  <!-- Left column -->
+  <div class="col-12 col-lg-8">
+
+    <!-- Description -->
+    <div class="section-card p-4 mb-4">
+      <h5 class="fw-semibold mb-3" style="color:var(--text-1);"><i class="bi bi-file-text me-2" style="color:var(--text-3);"></i>Description</h5>
+      <p class="mb-0" style="color:var(--text-2);line-height:1.8;">{{ cve.description or 'No description available.' }}</p>
+    </div>
+
+    <!-- Attack Chain -->
+    {% if cve.attack_vectors %}
+    <div class="section-card p-4 mb-4">
+      <h5 class="fw-semibold mb-3" style="color:var(--text-1);"><i class="bi bi-arrow-right-square text-warning me-2"></i>Attack Chain</h5>
+      <div class="attack-chain">
+        {% for step in cve.attack_vectors %}
+        <div class="attack-step d-flex gap-3 mb-3">
+          <div class="step-number">{{ step.step }}</div>
+          <div>
+            <span class="badge bg-dark mb-1" style="color:var(--orange);border-color:rgba(245,158,11,.3) !important;">{{ step.phase }}</span>
+            <p class="small mb-0" style="color:var(--text-2);line-height:1.6;">{{ step.description }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- MITRE ATT&CK -->
+    {% if cve.mitre_techniques %}
+    <div class="section-card p-4 mb-4">
+      <h5 class="fw-semibold mb-3" style="color:var(--text-1);">
+        <i class="bi bi-diagram-3 text-info me-2"></i>MITRE ATT&amp;CK Techniques
+      </h5>
+      <div class="row g-3">
+        {% for t in cve.mitre_techniques %}
+        <div class="col-12">
+          <div class="mitre-card p-3">
+            <div class="d-flex justify-content-between align-items-start mb-1 flex-wrap gap-1">
+              <div>
+                <a href="{{ t.url }}" target="_blank" class="fw-bold mono" style="color:var(--cyan);">{{ t.id }}</a>
+                <span class="fw-semibold ms-2" style="color:var(--text-1);">{{ t.name }}</span>
+              </div>
+              <span class="badge bg-dark" style="font-size:.7rem;">{{ t.tactic }}</span>
+            </div>
+            <p class="small mb-0" style="color:var(--text-3);">{{ t.description }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- IOCs -->
+    {% if cve.iocs %}
+    <div class="section-card p-4 mb-4">
+      <h5 class="fw-semibold mb-3" style="color:var(--text-1);"><i class="bi bi-crosshair text-danger me-2"></i>Indicators of Compromise</h5>
+      <div class="table-responsive">
+        <table class="table table-dark table-sm table-hover mb-0">
+          <thead style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;">
+            <tr>
+              <th style="width:110px;color:var(--text-3);">Type</th>
+              <th style="color:var(--text-3);">Value</th>
+              <th style="color:var(--text-3);">Description</th>
+              <th style="width:50px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ioc in cve.iocs %}
+            <tr>
+              <td>
+                <span class="badge bg-dark" style="font-size:.7rem;">
+                  {% if ioc.type == 'ip' %}<i class="bi bi-hdd-network me-1"></i>
+                  {% elif ioc.type == 'domain' %}<i class="bi bi-globe me-1"></i>
+                  {% elif ioc.type == 'hash' %}<i class="bi bi-hash me-1"></i>
+                  {% elif ioc.type == 'url' %}<i class="bi bi-link-45deg me-1"></i>
+                  {% else %}<i class="bi bi-tag me-1"></i>{% endif %}
+                  {{ ioc.type }}
+                </span>
+              </td>
+              <td><code>{{ ioc.value }}</code></td>
+              <td class="small" style="color:var(--text-3);">{{ ioc.description }}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-secondary py-0 px-1 copy-btn" data-copy="{{ ioc.value }}" title="Copy">
+                  <i class="bi bi-clipboard" style="font-size:.75rem;"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Remediation -->
+    {% if cve.remediation %}
+    <div class="section-card p-4 mb-4">
+      <h5 class="fw-semibold mb-3" style="color:var(--text-1);"><i class="bi bi-shield-check text-success me-2"></i>Remediation</h5>
+      <div style="color:var(--text-2);white-space:pre-line;line-height:1.8;">{{ cve.remediation }}</div>
+    </div>
+    {% endif %}
+
+    <!-- PoC Links -->
+    {% if cve.poc_urls %}
+    <div class="section-card p-4 mb-4">
+      <h5 class="fw-semibold mb-3" style="color:var(--text-1);"><i class="bi bi-code-slash text-warning me-2"></i>Public PoC / Exploits</h5>
+      <ul class="list-unstyled mb-0">
+        {% for url in cve.poc_urls %}
+        <li class="mb-2">
+          <a href="{{ url }}" target="_blank" style="color:var(--orange);font-size:.875rem;">
+            <i class="bi bi-box-arrow-up-right me-1"></i>{{ url }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Right sidebar -->
+  <div class="col-12 col-lg-4">
+
+    <!-- Quick Facts -->
+    <div class="section-card p-4 mb-4">
+      <h6 class="fw-semibold mb-3" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3);">Quick Facts</h6>
+      <table class="table table-dark table-sm mb-0" style="table-layout:fixed;width:100%;">
+        <colgroup><col style="width:90px;"><col></colgroup>
+        <tbody>
+          <tr>
+            <td class="small" style="color:var(--text-3);">CVE ID</td>
+            <td class="small fw-semibold mono">
+              <a href="{{ cve.source_url }}" target="_blank" style="color:var(--cyan);">
+                {{ cve.cve_id }} <i class="bi bi-box-arrow-up-right" style="font-size:.6rem;"></i>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td class="small" style="color:var(--text-3);">CVSS Score</td>
+            {% set cvss_cls = 'text-danger' if cve.cvss_score and cve.cvss_score >= 9 else ('text-warning' if cve.cvss_score and cve.cvss_score >= 7 else ('text-info' if cve.cvss_score and cve.cvss_score >= 4 else 'text-success')) %}
+            <td class="small fw-bold mono {{ cvss_cls }}">{{ "%.1f"|format(cve.cvss_score) if cve.cvss_score else 'N/A' }}</td>
+          </tr>
+          {% if cve.cvss_vector %}
+          <tr>
+            <td class="small" style="color:var(--text-3);">Vector</td>
+            <td style="word-break:break-all;overflow-wrap:break-word;"><code style="font-size:.72rem;white-space:normal;">{{ cve.cvss_vector }}</code></td>
+          </tr>
+          {% endif %}
+          <tr>
+            <td class="small" style="color:var(--text-3);">Published</td>
+            <td class="small mono" style="color:var(--text-2);">{{ cve.published_date.strftime('%Y-%m-%d') if cve.published_date else 'N/A' }}</td>
+          </tr>
+          <tr>
+            <td class="small" style="color:var(--text-3);">Exploited</td>
+            <td class="small">
+              {% if cve.exploited_in_wild %}
+              <span class="text-danger"><i class="bi bi-check-circle-fill me-1"></i>Yes</span>
+              {% else %}
+              <span style="color:var(--text-3);">No</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="small" style="color:var(--text-3);">CISA KEV</td>
+            <td class="small">
+              {% if cve.cisa_kev %}
+              <span style="color:var(--cyan);"><i class="bi bi-check-circle-fill me-1"></i>Yes</span>
+              {% else %}
+              <span style="color:var(--text-3);">No</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="small" style="color:var(--text-3);">PoC</td>
+            <td class="small">
+              {% if cve.poc_available %}
+              <span class="text-warning"><i class="bi bi-check-circle-fill me-1"></i>Available</span>
+              {% else %}
+              <span style="color:var(--text-3);">Not public</span>
+              {% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Affected Products -->
+    {% if cve.affected_products %}
+    <div class="section-card p-4 mb-4">
+      <h6 class="fw-semibold mb-3" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3);">Affected Products</h6>
+      <ul class="list-unstyled mb-0">
+        {% for p in cve.affected_products[:10] %}
+        <li class="mb-2 d-flex align-items-start gap-2">
+          <i class="bi bi-box" style="color:var(--text-3);margin-top:2px;flex-shrink:0;"></i>
+          <div>
+            <span class="small" style="color:var(--text-2);">{{ p.vendor }} / <strong style="color:var(--text-1);">{{ p.product }}</strong></span>
+            {% if p.version and p.version != '*' %}
+            <span class="badge bg-dark ms-1" style="font-size:.62rem;">{{ p.version }}</span>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+        {% if cve.affected_products|length > 10 %}
+        <li class="small" style="color:var(--text-3);">+{{ cve.affected_products|length - 10 }} more…</li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Threat Actors -->
+    {% if cve.threat_actors %}
+    <div class="section-card p-4 mb-4">
+      <h6 class="fw-semibold mb-3" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3);">
+        <i class="bi bi-person-fill-slash text-danger me-1"></i>Threat Actors
+      </h6>
+      {% for actor in cve.threat_actors %}
+      <div class="mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}" style="border-color:var(--border) !important;">
+        <div class="fw-semibold small" style="color:var(--red);">{{ actor.name }}</div>
+        {% if actor.aliases %}
+        <div style="font-size:.7rem;color:var(--text-3);">AKA: {{ actor.aliases|join(', ') }}</div>
+        {% endif %}
+        <div class="small mt-1" style="color:var(--text-2);">{{ actor.description }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- References -->
+    {% if cve.references %}
+    <div class="section-card p-4 mb-4">
+      <h6 class="fw-semibold mb-3" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3);">References</h6>
+      <ul class="list-unstyled mb-0">
+        {% for ref in cve.references[:10] %}
+        <li class="mb-2">
+          <a href="{{ ref }}" target="_blank" class="small" style="color:var(--text-3);word-break:break-all;">
+            <i class="bi bi-link-45deg me-1"></i>{{ ref[:60] }}{% if ref|length > 60 %}…{% endif %}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- External Links -->
+    <div class="section-card p-4 mb-4">
+      <h6 class="fw-semibold mb-3" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3);">External Resources</h6>
+      <div class="d-grid gap-2">
+        <a href="https://nvd.nist.gov/vuln/detail/{{ cve.cve_id }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-box-arrow-up-right me-1"></i>NVD Entry
+        </a>
+        <a href="https://github.com/search?q={{ cve.cve_id }}&type=repositories" target="_blank" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-github me-1"></i>GitHub
+        </a>
+        <a href="https://www.exploit-db.com/search?cve={{ cve.cve_id[4:] }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-terminal me-1"></i>Exploit-DB
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    navigator.clipboard.writeText(btn.dataset.copy).then(() => {
+      btn.innerHTML = '<i class="bi bi-clipboard-check" style="font-size:.75rem;color:var(--green)"></i>';
+      setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard" style="font-size:.75rem;"></i>', 1500);
+    });
+  });
+});
+</script>
+{% endblock %}

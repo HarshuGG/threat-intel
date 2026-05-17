@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — {{ site_name }}{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0 fw-semibold"><i class="bi bi-shield-lock text-danger me-2"></i>Admin Dashboard</h4>
+    <small style="color:var(--text-3);">Logged in as <strong style="color:var(--text-2);">{{ username }}</strong></small>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn btn-sm btn-outline-info" onclick="triggerCrawl()">
+      <i class="bi bi-arrow-clockwise me-1"></i>Trigger Crawl
+    </button>
+    <button class="btn btn-sm btn-outline-warning" onclick="triggerEnrichAll()">
+      <i class="bi bi-robot me-1"></i>Enrich All Pending
+    </button>
+    <a href="/" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-eye me-1"></i>View Site
+    </a>
+  </div>
+</div>
+
+<!-- Warning: approved CVEs missing enrichment -->
+{% if stats.approved_unenriched > 0 %}
+<div class="alert alert-dark border-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+  <div>
+    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+    <strong class="text-warning">{{ stats.approved_unenriched }} published CVE{{ 's' if stats.approved_unenriched != 1 }} missing threat intelligence</strong>
+    <span class="small ms-2" style="color:var(--text-3);">— IOCs, MITRE ATT&CK, and attack chain data not yet generated.</span>
+  </div>
+  <button class="btn btn-warning btn-sm" onclick="enrichApproved()">
+    <i class="bi bi-robot me-1"></i>Fix Now
+  </button>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  {% set admin_stats = [
+    (stats.pending,  'Pending Review', 'border-warning', 'text-warning'),
+    (stats.approved, 'Approved',       'border-success', 'text-success'),
+    (stats.rejected, 'Rejected',       'border-secondary','text-secondary'),
+    (stats.unenriched,'Not Enriched',  '', 'text-muted'),
+  ] %}
+  {% for val, label, border, color in admin_stats %}
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ border }} text-center rounded-3 p-3">
+      <div class="fs-2 fw-bold {{ color }}">{{ val }}</div>
+      <div class="small" style="color:var(--text-3);">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Toast -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+  <div id="actionToast" class="toast" role="alert">
+    <div class="toast-header">
+      <i class="bi bi-info-circle text-info me-2"></i>
+      <strong class="me-auto" style="color:var(--text-1);">System</strong>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" style="color:var(--text-2);" id="toastMsg"></div>
+  </div>
+</div>
+
+<!-- Pending Review -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold text-warning">
+    <i class="bi bi-hourglass-split me-2"></i>Pending Review
+    <span class="badge bg-dark ms-2" style="font-size:.75rem;">{{ pending|length }}</span>
+  </h5>
+  {% if pending %}
+  <button class="btn btn-sm btn-success" onclick="approveAll()">
+    <i class="bi bi-check-all me-1"></i>Approve All ({{ pending|length }})
+  </button>
+  {% endif %}
+</div>
+
+{% if pending %}
+<div class="section-card mb-5" style="border-radius:var(--radius);overflow:hidden;">
+  <div class="table-responsive">
+    <table class="table table-dark table-hover table-sm align-middle mb-0 cve-table">
+      <thead>
+        <tr>
+          <th>CVE ID</th>
+          <th>Severity</th>
+          <th>CVSS</th>
+          <th>Description</th>
+          <th>Flags</th>
+          <th>Enriched</th>
+          <th>Published</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cve in pending %}
+        <tr>
+          <td>
+            <a href="/admin/review/{{ cve.cve_id }}" class="fw-semibold text-decoration-none mono" style="color:var(--cyan);">{{ cve.cve_id }}</a>
+          </td>
+          <td><span class="badge bg-{{ severity_color(cve.severity) }}">{{ cve.severity or 'N/A' }}</span></td>
+          <td class="small mono" style="color:var(--text-3);">{{ "%.1f"|format(cve.cvss_score) if cve.cvss_score else '—' }}</td>
+          <td style="max-width:260px;">
+            <span class="small" style="color:var(--text-2);">{{ (cve.description or '')[:80] }}{% if (cve.description or '')|length > 80 %}…{% endif %}</span>
+          </td>
+          <td>
+            <div class="d-flex gap-2">
+              {% if cve.exploited_in_wild %}<i class="bi bi-lightning-fill text-danger" title="Exploited"></i>{% endif %}
+              {% if cve.cisa_kev %}<i class="bi bi-shield-fill-check text-info" title="CISA KEV"></i>{% endif %}
+              {% if cve.poc_available %}<i class="bi bi-code-slash text-warning" title="PoC"></i>{% endif %}
+            </div>
+          </td>
+          <td>
+            {% if cve.enriched_at %}
+            <i class="bi bi-check-circle-fill text-success"></i>
+            {% else %}
+            <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="enrichCve('{{ cve.cve_id }}')" title="Enrich now">
+              <i class="bi bi-robot" style="font-size:.75rem;"></i>
+            </button>
+            {% endif %}
+          </td>
+          <td class="small text-nowrap mono" style="color:var(--text-3);">{{ cve.published_date.strftime('%Y-%m-%d') if cve.published_date else '—' }}</td>
+          <td>
+            <div class="d-flex gap-1">
+              <a href="/admin/review/{{ cve.cve_id }}" class="btn btn-sm btn-outline-info py-0 px-2" title="Review">
+                <i class="bi bi-eye" style="font-size:.75rem;"></i>
+              </a>
+              <form method="post" action="/admin/approve/{{ cve.cve_id }}" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-success py-0 px-2" title="Approve">
+                  <i class="bi bi-check-lg" style="font-size:.75rem;"></i>
+                </button>
+              </form>
+              <form method="post" action="/admin/reject/{{ cve.cve_id }}" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-danger py-0 px-2" title="Reject">
+                  <i class="bi bi-x-lg" style="font-size:.75rem;"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="text-center py-4 mb-5" style="color:var(--text-3);">
+  <i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i>
+  <p>All caught up — no CVEs pending review.</p>
+</div>
+{% endif %}
+
+<!-- Crawl Logs -->
+<h5 class="mb-3 fw-semibold"><i class="bi bi-journal-text me-2" style="color:var(--text-3);"></i>Recent Crawl Logs</h5>
+{% if logs %}
+<div class="section-card" style="border-radius:var(--radius);overflow:hidden;">
+  <div class="table-responsive">
+    <table class="table table-dark table-sm align-middle mb-0">
+      <thead style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;">
+        <tr>
+          <th style="color:var(--text-3);">Source</th>
+          <th style="color:var(--text-3);">Started</th>
+          <th style="color:var(--text-3);">Status</th>
+          <th style="color:var(--text-3);">New</th>
+          <th style="color:var(--text-3);">Updated</th>
+          <th style="color:var(--text-3);">Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td><span class="badge bg-dark">{{ log.source }}</span></td>
+          <td class="small mono" style="color:var(--text-3);">{{ log.started_at.strftime('%Y-%m-%d %H:%M') if log.started_at else '—' }}</td>
+          <td>
+            {% if log.status == 'success' %}
+            <span class="badge bg-success">success</span>
+            {% elif log.status == 'failed' %}
+            <span class="badge bg-danger">failed</span>
+            {% else %}
+            <span class="badge bg-warning">{{ log.status }}</span>
+            {% endif %}
+          </td>
+          <td class="small text-success fw-semibold">{{ log.new_cves or 0 }}</td>
+          <td class="small" style="color:var(--cyan);">{{ log.updated_cves or 0 }}</td>
+          <td class="small" style="color:var(--text-3);">{{ (log.message or '')[:80] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<p style="color:var(--text-3);" class="small">No crawl logs yet. Trigger a crawl to get started.</p>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function triggerCrawl() {
+  await fetch('/api/admin/crawl', {method:'POST'});
+  showToast('Crawl started! CVEs will appear in the pending queue shortly.');
+}
+async function triggerEnrichAll() {
+  await fetch('/api/admin/enrich-all', {method:'POST'});
+  showToast('Enrichment started for all pending/unenriched CVEs.');
+}
+async function enrichApproved() {
+  await fetch('/api/admin/enrich-approved', {method:'POST'});
+  showToast('Enrichment started for published CVEs missing IOC/MITRE data.');
+}
+async function approveAll() {
+  if (!confirm('Approve all pending CVEs?')) return;
+  const res = await fetch('/api/admin/approve-all', {method:'POST'});
+  const data = await res.json();
+  showToast(`Approved ${data.approved} CVE(s). Enrichment queued.`);
+  setTimeout(() => location.reload(), 1500);
+}
+async function enrichCve(cveId) {
+  await fetch(`/admin/enrich/${cveId}`, {method:'POST'});
+  showToast(`Enrichment started for ${cveId}`);
+}
+function showToast(msg) {
+  document.getElementById('toastMsg').textContent = msg;
+  new bootstrap.Toast(document.getElementById('actionToast')).show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}{{ site_name }} — CVE Intelligence for Threat Hunters{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="hero-banner rounded-3 mb-4 p-4 p-lg-5 d-flex align-items-center justify-content-between flex-wrap gap-3">
+  <div>
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <i class="bi bi-shield-exclamation text-danger" style="font-size:2rem;filter:drop-shadow(0 0 8px rgba(239,68,68,.5))"></i>
+      <h1 class="display-6 fw-bold mb-0">{{ site_name }}</h1>
+    </div>
+    <p class="mb-1" style="color:var(--text-2);font-size:1.05rem;">{{ site_tagline }}</p>
+    <p style="color:var(--text-3);font-size:.8125rem;" class="mb-0">
+      <i class="bi bi-cpu me-1"></i>Auto-enriched · IOCs · MITRE ATT&amp;CK · Exploitation details
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="/cves?exploited=true" class="btn btn-danger">
+      <i class="bi bi-exclamation-triangle me-1"></i>Actively Exploited
+    </a>
+    <a href="/cves?cisa=true" class="btn btn-outline-info">
+      <i class="bi bi-shield-fill-check me-1"></i>CISA KEV
+    </a>
+    <a href="/cves" class="btn btn-outline-secondary">
+      Browse All CVEs
+    </a>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+  {% set stat_items = [
+    (stats.total,    'Published CVEs',     '', 'text-light'),
+    (stats.critical, 'Critical',           'border-danger', 'text-danger'),
+    (stats.high,     'High Severity',      'border-warning', 'text-warning'),
+    (stats.exploited,'Actively Exploited', 'border-danger', 'text-danger'),
+    (stats.cisa_kev, 'CISA KEV',           'border-info', 'text-info'),
+    (stats.pending,  'Pending Review',     'border-secondary', 'text-secondary'),
+  ] %}
+  {% for val, label, border_cls, text_cls in stat_items %}
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card {{ border_cls }} text-center rounded-3 p-3">
+      <div class="fs-2 fw-bold {{ text_cls }} count-up" data-target="{{ val }}">0</div>
+      <div class="small" style="color:var(--text-3)">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Recent CVEs -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">
+    <i class="bi bi-clock-history text-info me-2"></i>Latest CVEs
+  </h5>
+  <a href="/cves" class="btn btn-sm btn-outline-secondary">View All →</a>
+</div>
+
+{% if cves %}
+<div class="row g-3">
+  {% for cve in cves %}
+  <div class="col-12 col-lg-6">
+    <a href="/cve/{{ cve.cve_id }}" class="text-decoration-none">
+      <div class="cve-card rounded-3 p-3 h-100">
+
+        <!-- Top badges row -->
+        <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
+          <span class="badge bg-{{ severity_color(cve.severity) }}">{{ cve.severity or 'N/A' }}</span>
+          {% if cve.cvss_score %}
+          <span class="badge bg-dark">CVSS {{ "%.1f"|format(cve.cvss_score) }}</span>
+          {% endif %}
+          {% if cve.exploited_in_wild %}
+          <span class="badge bg-danger"><i class="bi bi-lightning-fill me-1"></i>Exploited</span>
+          {% endif %}
+          {% if cve.cisa_kev %}
+          <span class="badge bg-info">CISA KEV</span>
+          {% endif %}
+          {% if cve.poc_available %}
+          <span class="badge bg-warning">PoC</span>
+          {% endif %}
+        </div>
+
+        <div class="fw-semibold mb-1" style="color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:.875rem;">{{ cve.cve_id }}</div>
+        <div class="small mb-2" style="color:var(--text-2);line-height:1.5;">
+          {{ (cve.description or '')[:140] }}{% if (cve.description or '') | length > 140 %}…{% endif %}
+        </div>
+
+        {% if cve.mitre_techniques %}
+        <div class="d-flex gap-1 flex-wrap mb-2">
+          {% for t in cve.mitre_techniques[:3] %}
+          <span class="badge bg-dark" style="font-size:.65rem;">{{ t.id }}</span>
+          {% endfor %}
+          {% if cve.mitre_techniques|length > 3 %}
+          <span class="badge bg-dark" style="font-size:.65rem;">+{{ cve.mitre_techniques|length - 3 }}</span>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <div style="font-size:.75rem;color:var(--text-3);">
+          <i class="bi bi-calendar3 me-1"></i>{{ cve.published_date.strftime('%Y-%m-%d') if cve.published_date else 'N/A' }}
+          {% if cve.affected_products %}
+          &nbsp;·&nbsp;<i class="bi bi-box me-1"></i>{{ cve.affected_products[0].product if cve.affected_products[0] else '' }}{% if cve.affected_products|length > 1 %} +{{ cve.affected_products|length - 1 }}{% endif %}
+          {% endif %}
+        </div>
+
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="text-center py-5" style="color:var(--text-3)">
+  <i class="bi bi-database-x fs-1 d-block mb-3"></i>
+  <p class="mb-3">No CVEs yet — the crawler will populate data shortly.</p>
+  <a href="/admin" class="btn btn-sm btn-outline-danger">Go to Admin →</a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Animated count-up for stat cards
+document.querySelectorAll('.count-up').forEach(el => {
+  const target = parseInt(el.dataset.target, 10) || 0;
+  if (target === 0) { el.textContent = '0'; return; }
+  const dur = 900, step = 16;
+  const inc = target / (dur / step);
+  let cur = 0;
+  const timer = setInterval(() => {
+    cur = Math.min(cur + inc, target);
+    el.textContent = Math.floor(cur).toLocaleString();
+    if (cur >= target) clearInterval(timer);
+  }, step);
+});
+</script>
+{% endblock %}

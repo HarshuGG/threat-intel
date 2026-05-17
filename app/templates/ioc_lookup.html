@@ -1,0 +1,840 @@
+{% extends "base.html" %}
+{% block title %}IOC Lookup — {{ site_name }}{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-crosshair2 text-danger fs-4"></i>
+  <div>
+    <h4 class="fw-bold mb-0 text-light">IOC Reputation Lookup</h4>
+    <p class="text-muted small mb-0">Check if an IP address or file hash is associated with malicious activity</p>
+  </div>
+</div>
+
+<!-- Search Form -->
+<div class="section-card rounded-3 p-4 mb-4">
+  <form method="get" action="/ioc" class="row g-3 align-items-end">
+    <div class="col-12 col-md-9">
+      <label class="form-label text-muted small text-uppercase" style="letter-spacing:.08em">
+        <i class="bi bi-search"></i> Enter IPv4, IPv6, MD5, SHA1, or SHA256
+      </label>
+      <input
+        type="text"
+        name="q"
+        class="form-control form-control-lg"
+        placeholder="e.g. 185.220.101.45  or  d41d8cd98f00b204e9800998ecf8427e"
+        value="{{ query }}"
+        autofocus
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+    <div class="col-12 col-md-3">
+      <button type="submit" class="btn btn-danger btn-lg w-100">
+        <i class="bi bi-shield-exclamation"></i> Check IOC
+      </button>
+    </div>
+  </form>
+
+  <!-- Quick example chips -->
+  {% if not result %}
+  <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+    <span class="text-muted small">Try:</span>
+    <a href="/ioc?q=185.220.101.45" class="badge bg-dark border border-secondary text-secondary text-decoration-none px-2 py-1">185.220.101.45 (IP)</a>
+    <a href="/ioc?q=44d88612fea8a8f36de82e1278abb02f" class="badge bg-dark border border-secondary text-secondary text-decoration-none px-2 py-1">44d88612... (MD5)</a>
+    <a href="/ioc?q=275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f" class="badge bg-dark border border-secondary text-secondary text-decoration-none px-2 py-1">275a021b... (SHA256)</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Results ─────────────────────────────────────────────────────────── -->
+{% if result %}
+
+  {% if result.error %}
+  <!-- Error banner -->
+  <div class="alert alert-dark border-warning d-flex align-items-center gap-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill text-warning fs-4"></i>
+    <div>
+      <strong class="text-warning">Lookup failed</strong>
+      <p class="mb-0 text-light small mt-1">{{ result.error }}</p>
+    </div>
+  </div>
+
+  {% else %}
+
+  <!-- ── Verdict Banner ─────────────────────────────────────────────── -->
+  {% if result.verdict == "malicious" %}
+  <div class="rounded-3 p-4 mb-4 d-flex flex-wrap gap-3 align-items-center"
+       style="background:linear-gradient(135deg,#1a0808,#0d1117);border:1px solid #f8514966;">
+    <div class="d-flex align-items-center gap-3 flex-grow-1">
+      <i class="bi bi-shield-fill-x text-danger" style="font-size:2.5rem;"></i>
+      <div>
+        <div class="text-danger fw-bold fs-5">MALICIOUS</div>
+        <div class="text-light fw-semibold" style="word-break:break-all">{{ result.value }}</div>
+        <div class="text-muted small mt-1">
+          <span class="badge bg-dark border border-secondary text-uppercase text-muted me-2">{{ result.type }}</span>
+          <span class="badge
+            {% if result.confidence == 'high' %}bg-danger
+            {% elif result.confidence == 'medium' %}bg-warning text-dark
+            {% else %}bg-secondary{% endif %}">
+            {{ result.confidence }} confidence
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="text-end">
+      {% if result.first_seen %}
+      <div class="text-muted small"><i class="bi bi-calendar-event"></i> First seen</div>
+      <div class="text-warning fw-semibold">{{ result.first_seen }}</div>
+      {% endif %}
+      {% if result.last_seen %}
+      <div class="text-muted small mt-1"><i class="bi bi-clock-history"></i> Last seen</div>
+      <div class="text-light small">{{ result.last_seen }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% elif result.verdict == "clean" %}
+  <div class="rounded-3 p-4 mb-4 d-flex flex-wrap gap-3 align-items-center"
+       style="background:linear-gradient(135deg,#061a0b,#0d1117);border:1px solid #3fb95066;">
+    <div class="d-flex align-items-center gap-3 flex-grow-1">
+      <i class="bi bi-shield-fill-check text-success" style="font-size:2.5rem;"></i>
+      <div>
+        <div class="text-success fw-bold fs-5">CLEAN</div>
+        <div class="text-light fw-semibold" style="word-break:break-all">{{ result.value }}</div>
+        <div class="text-muted small mt-1">
+          <span class="badge bg-dark border border-secondary text-uppercase text-muted me-2">{{ result.type }}</span>
+          <span class="badge bg-success">{{ result.confidence }} confidence</span>
+        </div>
+      </div>
+    </div>
+    {% if result.first_seen %}
+    <div class="text-end">
+      <div class="text-muted small"><i class="bi bi-calendar-event"></i> First seen</div>
+      <div class="text-light fw-semibold">{{ result.first_seen }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% else %}
+  <div class="rounded-3 p-4 mb-4 d-flex flex-wrap gap-3 align-items-center"
+       style="background:var(--bg-card);border:1px solid var(--border);">
+    <div class="d-flex align-items-center gap-3 flex-grow-1">
+      <i class="bi bi-question-circle text-secondary" style="font-size:2.5rem;"></i>
+      <div>
+        <div class="text-secondary fw-bold fs-5">UNKNOWN</div>
+        <div class="text-light fw-semibold" style="word-break:break-all">{{ result.value }}</div>
+        <div class="text-muted small mt-1">
+          <span class="badge bg-dark border border-secondary text-uppercase text-muted">{{ result.type }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Main Detail Columns ────────────────────────────────────────── -->
+  <div class="row g-4">
+    <div class="col-12 col-lg-8">
+
+      <!-- Campaigns / Pulses -->
+      {% set otx_src = result.sources | selectattr("source", "equalto", "AlienVault OTX") | first %}
+      {% if otx_src and otx_src.campaigns %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h5 class="fw-semibold text-light mb-3">
+          <i class="bi bi-broadcast text-warning"></i>
+          Threat Intelligence Campaigns
+          <span class="badge bg-dark border border-secondary text-muted ms-2">{{ otx_src.pulse_count }} pulse{{ 's' if otx_src.pulse_count != 1 }}</span>
+        </h5>
+        <div class="d-flex flex-column gap-3">
+          {% for c in otx_src.campaigns %}
+          <div class="rounded-3 p-3" style="background:var(--bg-surface);border:1px solid var(--border);">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+              <div class="fw-semibold text-info">{{ c.name }}</div>
+              <div class="d-flex gap-2 flex-wrap">
+                {% if c.tlp %}
+                <span class="badge
+                  {% if c.tlp == 'red' %}bg-danger
+                  {% elif c.tlp == 'amber' %}bg-warning text-dark
+                  {% elif c.tlp == 'green' %}bg-success
+                  {% else %}bg-secondary{% endif %}">
+                  TLP:{{ c.tlp | upper }}
+                </span>
+                {% endif %}
+                {% if c.created %}
+                <span class="text-muted small"><i class="bi bi-calendar3"></i> {{ c.created[:10] }}</span>
+                {% endif %}
+              </div>
+            </div>
+            {% if c.adversary %}
+            <div class="mb-1">
+              <span class="text-muted small">Adversary: </span>
+              <span class="badge bg-dark border border-danger text-danger">{{ c.adversary }}</span>
+            </div>
+            {% endif %}
+            {% if c.malware_families %}
+            <div class="mb-1 d-flex flex-wrap gap-1 align-items-center">
+              <span class="text-muted small">Malware: </span>
+              {% for mf in c.malware_families %}
+              <span class="badge bg-dark border border-warning text-warning small">{{ mf }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if c.targeted_countries %}
+            <div class="mb-1">
+              <span class="text-muted small">Targeted: {{ c.targeted_countries | join(', ') }}</span>
+            </div>
+            {% endif %}
+            {% if c.description %}
+            <p class="text-muted small mb-1" style="line-height:1.5">{{ c.description }}</p>
+            {% endif %}
+            {% if c.tags %}
+            <div class="d-flex flex-wrap gap-1 mt-1">
+              {% for t in c.tags %}
+              <span class="badge bg-dark border border-secondary text-secondary" style="font-size:.65rem;">{{ t }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if c.author %}
+            <div class="text-muted mt-1" style="font-size:.7rem;">by {{ c.author }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- VirusTotal Detections -->
+      {% set vt_src = result.sources | selectattr("source", "equalto", "VirusTotal") | first %}
+      {% if vt_src and not vt_src.skipped and not vt_src.error and not vt_src.not_found %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h5 class="fw-semibold text-light mb-3">
+          <i class="bi bi-virus text-danger"></i> VirusTotal Analysis
+        </h5>
+
+        <!-- Ratio bar -->
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="flex-grow-1">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-muted small">Detection ratio</span>
+              <span class="fw-bold {% if vt_src.malicious_count > 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ vt_src.detection_ratio }}
+              </span>
+            </div>
+            <div class="progress" style="height:8px;background:#21262d;">
+              {% if vt_src.total_engines > 0 %}
+              {% set pct = ((vt_src.malicious_count or 0) / vt_src.total_engines * 100) | int %}
+              <div class="progress-bar {% if pct > 20 %}bg-danger{% elif pct > 0 %}bg-warning{% else %}bg-success{% endif %}"
+                   style="width:{{ pct }}%;"></div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="text-end">
+            <div class="text-muted small">Reputation</div>
+            <div class="fw-bold {% if (vt_src.reputation or 0) < 0 %}text-danger{% else %}text-success{% endif %}">
+              {{ vt_src.reputation or 0 }}
+            </div>
+          </div>
+        </div>
+
+        {% if vt_src.threat_label %}
+        <div class="mb-3">
+          <span class="badge bg-danger fs-6"><i class="bi bi-tag"></i> {{ vt_src.threat_label }}</span>
+          {% for cat in (vt_src.threat_categories or []) %}
+          <span class="badge bg-dark border border-warning text-warning ms-1">{{ cat }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Crowdsourced context -->
+        {% if vt_src.crowdsourced_context %}
+        <div class="mb-3">
+          <div class="text-muted small fw-semibold mb-2 text-uppercase" style="letter-spacing:.08em">Crowdsourced Context</div>
+          {% for ctx in vt_src.crowdsourced_context %}
+          <div class="rounded-2 p-2 mb-2" style="background:var(--bg-surface);border:1px solid var(--border);">
+            {% if ctx.title %}<div class="text-info small fw-semibold">{{ ctx.title }}</div>{% endif %}
+            {% if ctx.details %}<div class="text-muted small">{{ ctx.details }}</div>{% endif %}
+            {% if ctx.source %}<div class="text-muted" style="font-size:.7rem">— {{ ctx.source }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if vt_src.last_analysis_date %}
+        <div class="text-muted mt-2" style="font-size:.75rem;">
+          <i class="bi bi-clock"></i> Last scanned: {{ vt_src.last_analysis_date }}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- ── Threat Groups / Malware Families / Attack Types ─────────── -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-12 col-md-4">
+          <div class="section-card rounded-3 p-3 h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-2" style="letter-spacing:.08em">
+              <i class="bi bi-person-fill-slash text-danger"></i> Threat Groups
+            </div>
+            {% if result.threat_groups %}
+            <div class="d-flex flex-wrap gap-1">
+              {% for g in result.threat_groups %}
+              <span class="badge bg-dark border border-danger text-danger">{{ g }}</span>
+              {% endfor %}
+            </div>
+            {% else %}
+            <span class="text-muted small">None identified</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <div class="section-card rounded-3 p-3 h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-2" style="letter-spacing:.08em">
+              <i class="bi bi-bug-fill text-warning"></i> Malware Families
+            </div>
+            {% if result.malware_families %}
+            <div class="d-flex flex-wrap gap-1">
+              {% for f in result.malware_families %}
+              <span class="badge bg-dark border border-warning text-warning">{{ f }}</span>
+              {% endfor %}
+            </div>
+            {% else %}
+            <span class="text-muted small">None identified</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <div class="section-card rounded-3 p-3 h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-2" style="letter-spacing:.08em">
+              <i class="bi bi-lightning-fill text-info"></i> Attack Types / Tactics
+            </div>
+            {% if result.attack_types %}
+            <div class="d-flex flex-wrap gap-1">
+              {% for a in result.attack_types %}
+              <span class="badge bg-dark border border-info text-info">{{ a }}</span>
+              {% endfor %}
+            </div>
+            {% else %}
+            <span class="text-muted small">None identified</span>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Detection History ─────────────────────────────────────── -->
+      {% if result.history %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h5 class="fw-semibold text-light mb-1">
+          <i class="bi bi-graph-up text-success"></i> Detection History
+        </h5>
+        <p class="text-muted small mb-4">Daily report / detection count across all threat intelligence sources</p>
+
+        <!-- Milestone stats -->
+        <div class="row g-3 mb-4 text-center">
+          <div class="col-6 col-md-3">
+            <div class="fw-bold fs-4
+              {% if result.verdict == 'malicious' %}text-danger
+              {% elif result.verdict == 'clean' %}text-success
+              {% else %}text-secondary{% endif %}">
+              {{ result.history | sum(attribute='count') }}
+            </div>
+            <div class="text-muted small">Total Detections</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="fw-bold fs-4 text-light">{{ result.history | length }}</div>
+            <div class="text-muted small">Active Days</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="fw-semibold text-info">{{ result.first_seen[:10] if result.first_seen else '—' }}</div>
+            <div class="text-muted small">First Reported</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="fw-semibold text-light">{{ result.last_seen[:10] if result.last_seen else '—' }}</div>
+            <div class="text-muted small">Last Seen</div>
+          </div>
+        </div>
+
+        <!-- Bar chart -->
+        <div style="position:relative;height:220px;">
+          <canvas id="historyChart"></canvas>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- VT skipped/not found notice -->
+      {% if vt_src and vt_src.skipped %}
+      <div class="alert alert-dark border-secondary mb-4">
+        <i class="bi bi-info-circle text-secondary"></i>
+        <strong class="text-secondary">VirusTotal not configured</strong> —
+        <span class="text-muted small">Set <code>VT_API_KEY</code> in your <code>.env</code> for richer detections (free tier available).</span>
+      </div>
+      {% endif %}
+
+      <!-- AbuseIPDB (IPs only) -->
+      {% set abuse_src = result.sources | selectattr("source", "equalto", "AbuseIPDB") | first %}
+      {% if abuse_src and not abuse_src.skipped and not abuse_src.error %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h5 class="fw-semibold text-light mb-3">
+          <i class="bi bi-shield-fill-exclamation text-warning"></i> AbuseIPDB Reports
+        </h5>
+
+        <div class="row g-3 mb-3">
+          <div class="col-4 text-center">
+            <div class="fs-3 fw-bold
+              {% if abuse_src.abuse_confidence_score >= 75 %}text-danger
+              {% elif abuse_src.abuse_confidence_score >= 25 %}text-warning
+              {% else %}text-success{% endif %}">
+              {{ abuse_src.abuse_confidence_score }}%
+            </div>
+            <div class="text-muted small">Confidence</div>
+          </div>
+          <div class="col-4 text-center">
+            <div class="fs-3 fw-bold text-light">{{ abuse_src.total_reports }}</div>
+            <div class="text-muted small">Total Reports</div>
+          </div>
+          <div class="col-4 text-center">
+            <div class="fs-3 fw-bold text-light">{{ abuse_src.distinct_users }}</div>
+            <div class="text-muted small">Distinct Users</div>
+          </div>
+        </div>
+
+        {% if abuse_src.reported_categories %}
+        <div class="mb-3">
+          <div class="text-muted small fw-semibold mb-1 text-uppercase" style="letter-spacing:.08em">Report Categories</div>
+          <div class="d-flex flex-wrap gap-1">
+            {% for cat in abuse_src.reported_categories %}
+            <span class="badge bg-dark border border-warning text-warning">{{ cat }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if abuse_src.recent_reports %}
+        <div class="text-muted small fw-semibold mb-2 text-uppercase" style="letter-spacing:.08em">Recent Reports</div>
+        {% for rep in abuse_src.recent_reports %}
+        <div class="rounded-2 p-2 mb-2" style="background:var(--bg-surface);border:1px solid var(--border);">
+          <div class="d-flex justify-content-between mb-1">
+            <div class="d-flex gap-1 flex-wrap">
+              {% for cat in rep.categories %}
+              <span class="badge bg-dark border border-secondary text-secondary small">{{ cat }}</span>
+              {% endfor %}
+            </div>
+            <span class="text-muted" style="font-size:.7rem;">{{ rep.reported_at }}</span>
+          </div>
+          {% if rep.comment %}
+          <div class="text-muted small">{{ rep.comment }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% if abuse_src.is_tor %}
+        <div class="mt-2">
+          <span class="badge bg-dark border border-danger text-danger"><i class="bi bi-incognito"></i> Tor Exit Node</span>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if abuse_src and abuse_src.skipped %}
+      <div class="alert alert-dark border-secondary mb-4">
+        <i class="bi bi-info-circle text-secondary"></i>
+        <strong class="text-secondary">AbuseIPDB not configured</strong> —
+        <span class="text-muted small">Set <code>ABUSEIPDB_API_KEY</code> in your <code>.env</code> for IP abuse reports (free tier available).</span>
+      </div>
+      {% endif %}
+
+      <!-- Local CVE Matches -->
+      {% if result.local_cve_matches %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h5 class="fw-semibold text-light mb-3">
+          <i class="bi bi-database-fill-exclamation text-info"></i> Matched in Local CVE Database
+        </h5>
+        <p class="text-muted small mb-3">This IOC value appears in the enriched data of the following CVEs in your database:</p>
+        <div class="d-flex flex-column gap-2">
+          {% for match in result.local_cve_matches %}
+          <a href="/cve/{{ match.cve_id }}" class="text-decoration-none">
+            <div class="rounded-3 p-3" style="background:var(--bg-surface);border:1px solid var(--border);transition:border-color .2s"
+                 onmouseover="this.style.borderColor='#58a6ff55'" onmouseout="this.style.borderColor='#30363d'">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                  <span class="text-info fw-semibold">{{ match.cve_id }}</span>
+                  {% if match.severity %}
+                  <span class="badge bg-{{ severity_color(match.severity) }} ms-2">{{ match.severity }}</span>
+                  {% endif %}
+                  {% if match.cvss_score %}
+                  <span class="badge bg-dark border border-secondary text-muted ms-1">CVSS {{ "%.1f"|format(match.cvss_score) }}</span>
+                  {% endif %}
+                </div>
+                {% if match.published_date %}
+                <span class="text-muted small"><i class="bi bi-calendar3"></i> {{ match.published_date }}</span>
+                {% endif %}
+              </div>
+              {% if match.ioc_description %}
+              <div class="text-muted small mt-1">{{ match.ioc_description }}</div>
+              {% endif %}
+              {% if match.mitre_techniques %}
+              <div class="d-flex flex-wrap gap-1 mt-2">
+                {% for t in match.mitre_techniques %}
+                <span class="badge bg-dark border border-secondary text-secondary small">{{ t }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% if match.threat_actors %}
+              <div class="mt-1">
+                {% for actor in match.threat_actors %}
+                <span class="badge bg-dark border border-danger text-danger small">{{ actor.name }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- ── Right Sidebar ───────────────────────────────────────────── -->
+    <div class="col-12 col-lg-4">
+
+      <!-- Quick Facts -->
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h6 class="fw-semibold text-muted mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.1em">IOC Details</h6>
+        <table class="table table-dark table-sm mb-0">
+          <tbody>
+            <tr>
+              <td class="text-muted small">Value</td>
+              <td>
+                <code class="text-warning small" style="word-break:break-all">{{ result.value }}</code>
+                <button class="btn btn-sm btn-outline-secondary py-0 ms-1 copy-btn" data-copy="{{ result.value }}" title="Copy">
+                  <i class="bi bi-clipboard" style="font-size:.75rem;"></i>
+                </button>
+              </td>
+            </tr>
+            <tr>
+              <td class="text-muted small">Type</td>
+              <td><span class="badge bg-dark border border-secondary text-secondary text-uppercase">{{ result.type }}</span></td>
+            </tr>
+            <tr>
+              <td class="text-muted small">Verdict</td>
+              <td>
+                <span class="fw-bold
+                  {% if result.verdict == 'malicious' %}text-danger
+                  {% elif result.verdict == 'clean' %}text-success
+                  {% else %}text-secondary{% endif %}">
+                  {{ result.verdict | upper }}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td class="text-muted small">Confidence</td>
+              <td>
+                <span class="badge
+                  {% if result.confidence == 'high' and result.verdict == 'malicious' %}bg-danger
+                  {% elif result.confidence == 'medium' %}bg-warning text-dark
+                  {% elif result.confidence == 'high' and result.verdict == 'clean' %}bg-success
+                  {% else %}bg-secondary{% endif %}">
+                  {{ result.confidence }}
+                </span>
+              </td>
+            </tr>
+            {% if result.first_seen %}
+            <tr>
+              <td class="text-muted small">First Seen</td>
+              <td class="small text-light">{{ result.first_seen }}</td>
+            </tr>
+            {% endif %}
+            {% if result.last_seen %}
+            <tr>
+              <td class="text-muted small">Last Seen</td>
+              <td class="small text-light">{{ result.last_seen }}</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- IP Geo / Network Info -->
+      {% if result.type in ('ipv4', 'ipv6') %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h6 class="fw-semibold text-muted mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.1em">
+          <i class="bi bi-globe2"></i> Network Info
+        </h6>
+        <table class="table table-dark table-sm mb-0">
+          <tbody>
+            {% if result.country %}
+            <tr><td class="text-muted small">Country</td><td class="small text-light">{{ result.country }}</td></tr>
+            {% endif %}
+            {% if result.city %}
+            <tr><td class="text-muted small">City</td><td class="small text-light">{{ result.city }}</td></tr>
+            {% endif %}
+            {% if result.asn %}
+            <tr><td class="text-muted small">ASN</td><td class="small text-light">{{ result.asn }}</td></tr>
+            {% endif %}
+            {% if result.isp %}
+            <tr><td class="text-muted small">ISP / Owner</td><td class="small text-light">{{ result.isp }}</td></tr>
+            {% endif %}
+            {% set abuse_src2 = result.sources | selectattr("source", "equalto", "AbuseIPDB") | first %}
+            {% if abuse_src2 and abuse_src2.usage_type %}
+            <tr><td class="text-muted small">Usage Type</td><td class="small text-light">{{ abuse_src2.usage_type }}</td></tr>
+            {% endif %}
+            {% if abuse_src2 and abuse_src2.domain %}
+            <tr><td class="text-muted small">Domain</td><td class="small text-light">{{ abuse_src2.domain }}</td></tr>
+            {% endif %}
+            {% if abuse_src2 and abuse_src2.hostnames %}
+            <tr>
+              <td class="text-muted small">Hostnames</td>
+              <td class="small text-light">{{ abuse_src2.hostnames | join(', ') }}</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <!-- Hash / File Info -->
+      {% if result.type in ('md5', 'sha1', 'sha256') %}
+      {% if result.file_type or result.file_size or result.all_hashes %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h6 class="fw-semibold text-muted mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.1em">
+          <i class="bi bi-file-earmark-binary"></i> File Info
+        </h6>
+        <table class="table table-dark table-sm mb-0">
+          <tbody>
+            {% if result.file_type %}
+            <tr><td class="text-muted small">Type</td><td class="small text-light">{{ result.file_type }}</td></tr>
+            {% endif %}
+            {% if result.file_size %}
+            <tr>
+              <td class="text-muted small">Size</td>
+              <td class="small text-light">
+                {% if result.file_size > 1048576 %}{{ "%.1f"|format(result.file_size / 1048576) }} MB
+                {% elif result.file_size > 1024 %}{{ "%.1f"|format(result.file_size / 1024) }} KB
+                {% else %}{{ result.file_size }} B{% endif %}
+              </td>
+            </tr>
+            {% endif %}
+            {% for fname in result.file_names[:3] %}
+            <tr><td class="text-muted small">Name</td><td><code class="small text-warning">{{ fname }}</code></td></tr>
+            {% endfor %}
+            {% for hash_name, hash_val in result.all_hashes.items() %}
+            <tr>
+              <td class="text-muted small">{{ hash_name }}</td>
+              <td>
+                <code class="text-warning" style="font-size:.65rem;word-break:break-all;">{{ hash_val }}</code>
+                <button class="btn btn-sm btn-outline-secondary py-0 ms-1 copy-btn" data-copy="{{ hash_val }}" title="Copy">
+                  <i class="bi bi-clipboard" style="font-size:.65rem;"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <!-- Sandbox verdicts -->
+      {% set vt_src2 = result.sources | selectattr("source", "equalto", "VirusTotal") | first %}
+      {% if vt_src2 and vt_src2.sandbox_verdicts %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h6 class="fw-semibold text-muted mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.1em">
+          <i class="bi bi-box-seam"></i> Sandbox Verdicts
+        </h6>
+        {% for sv in vt_src2.sandbox_verdicts %}
+        <div class="mb-2">
+          <div class="text-muted small">{{ sv.sandbox_name or sv.get('sandbox', '') }}</div>
+          <span class="badge
+            {% if sv.category == 'malicious' %}bg-danger
+            {% elif sv.category == 'suspicious' %}bg-warning text-dark
+            {% else %}bg-success{% endif %}">
+            {{ sv.category | upper }}
+          </span>
+          {% if sv.malware_names %}
+          <span class="text-muted small ms-1">{{ sv.malware_names | join(', ') }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endif %}
+
+      <!-- Industries targeted -->
+      {% if result.industries_targeted %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h6 class="fw-semibold text-muted mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.1em">
+          <i class="bi bi-buildings"></i> Industries Targeted
+        </h6>
+        <div class="d-flex flex-wrap gap-1">
+          {% for ind in result.industries_targeted %}
+          <span class="badge bg-dark border border-secondary text-secondary">{{ ind }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Tags -->
+      {% if result.tags %}
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h6 class="fw-semibold text-muted mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.1em">Tags</h6>
+        <div class="d-flex flex-wrap gap-1">
+          {% for t in result.tags %}
+          <span class="badge bg-dark border border-secondary text-secondary small">{{ t }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- External links -->
+      <div class="section-card rounded-3 p-4 mb-4">
+        <h6 class="fw-semibold text-muted mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.1em">
+          External Resources
+        </h6>
+        <div class="d-grid gap-2">
+          {% if result.type in ('ipv4', 'ipv6') %}
+          <a href="https://otx.alienvault.com/indicator/ip/{{ result.value }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> AlienVault OTX
+          </a>
+          <a href="https://www.abuseipdb.com/check/{{ result.value }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> AbuseIPDB
+          </a>
+          <a href="https://www.shodan.io/host/{{ result.value }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> Shodan
+          </a>
+          <a href="https://viz.greynoise.io/ip/{{ result.value }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> GreyNoise
+          </a>
+          {% else %}
+          <a href="https://otx.alienvault.com/indicator/file/{{ result.value }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> AlienVault OTX
+          </a>
+          <a href="https://www.virustotal.com/gui/file/{{ result.value }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> VirusTotal
+          </a>
+          <a href="https://bazaar.abuse.ch/browse.php?search=sha256%3A{{ result.value }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> MalwareBazaar
+          </a>
+          <a href="https://www.hybrid-analysis.com/search?query={{ result.value }}" target="_blank"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> Hybrid Analysis
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {% endif %}{# end error check #}
+{% endif %}{# end result #}
+
+<!-- Help section (shown only when no query) -->
+{% if not result and not query %}
+<div class="row g-4 mt-2">
+  <div class="col-12 col-md-4">
+    <div class="section-card rounded-3 p-4 h-100">
+      <i class="bi bi-hdd-network text-info fs-3 mb-3 d-block"></i>
+      <h6 class="fw-semibold text-light">IP Addresses</h6>
+      <p class="text-muted small mb-0">Check IPv4 or IPv6 addresses for abuse reports, geo-location, ASN, Tor exit nodes, and linked threat campaigns.</p>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="section-card rounded-3 p-4 h-100">
+      <i class="bi bi-hash text-warning fs-3 mb-3 d-block"></i>
+      <h6 class="fw-semibold text-light">File Hashes</h6>
+      <p class="text-muted small mb-0">Look up MD5, SHA1, or SHA256 hashes to identify malware families, sandbox verdicts, first submission dates, and detection ratios.</p>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="section-card rounded-3 p-4 h-100">
+      <i class="bi bi-diagram-3 text-danger fs-3 mb-3 d-block"></i>
+      <h6 class="fw-semibold text-light">Multi-Source Intel</h6>
+      <p class="text-muted small mb-0">Results are aggregated from AlienVault OTX (free), VirusTotal (requires key), AbuseIPDB (requires key), and your local CVE database.</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    navigator.clipboard.writeText(btn.dataset.copy).then(() => {
+      const icon = btn.querySelector('i');
+      icon.className = 'bi bi-clipboard-check';
+      setTimeout(() => icon.className = 'bi bi-clipboard', 1500);
+    });
+  });
+});
+</script>
+
+{% if result and not result.error and result.history %}
+<script>
+(function () {
+  const history = {{ result.history | tojson }};
+  if (!history.length) return;
+
+  const labels = history.map(h => h.date);
+  const counts = history.map(h => h.count);
+  const malicious = {{ 'true' if result.verdict == 'malicious' else 'false' }};
+  const barFill   = malicious ? 'rgba(248,81,73,0.65)'  : 'rgba(63,185,80,0.65)';
+  const barBorder = malicious ? 'rgba(248,81,73,1)'     : 'rgba(63,185,80,1)';
+
+  new Chart(document.getElementById('historyChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Detections / Reports',
+        data: counts,
+        backgroundColor: barFill,
+        borderColor: barBorder,
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: item => ` ${item.raw} detection${item.raw !== 1 ? 's' : ''}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', maxRotation: 45, autoSkip: true, maxTicksLimit: 14 },
+          grid:  { color: '#1e2a3a' }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: '#64748b', precision: 0 },
+          grid:  { color: '#1e2a3a' }
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
