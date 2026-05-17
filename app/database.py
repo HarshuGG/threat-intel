@@ -4,9 +4,11 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./threat_intel.db")
+_base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(_base_dir, 'threat_intel.db')}")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
