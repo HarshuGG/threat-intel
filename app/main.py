@@ -82,8 +82,7 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
         "cisa_kev": db.query(CVE).filter(CVE.status == "approved", CVE.cisa_kev == True).count(),
         "pending": db.query(CVE).filter(CVE.status == "pending").count(),
     }
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request=request, name="index.html", context={
         "cves": recent,
         "stats": stats,
     })
@@ -116,8 +115,7 @@ async def browse_cves(
     cves = q.order_by(CVE.published_date.desc()).offset((page - 1) * per_page).limit(per_page).all()
     total_pages = (total + per_page - 1) // per_page
 
-    return templates.TemplateResponse("cves.html", {
-        "request": request,
+    return templates.TemplateResponse(request=request, name="cves.html", context={
         "cves": cves,
         "total": total,
         "page": page,
@@ -134,7 +132,7 @@ async def cve_detail(request: Request, cve_id: str, db: Session = Depends(get_db
     cve = db.query(CVE).filter(CVE.cve_id == cve_id, CVE.status == "approved").first()
     if not cve:
         raise HTTPException(status_code=404, detail="CVE not found or not published")
-    return templates.TemplateResponse("cve_detail.html", {"request": request, "cve": cve})
+    return templates.TemplateResponse(request=request, name="cve_detail.html", context={"cve": cve})
 
 
 # ─── Admin Routes ────────────────────────────────────────────────────────────
@@ -157,8 +155,7 @@ async def admin_dashboard(
             CVE.status == "approved", CVE.enriched_at.is_(None)
         ).count(),
     }
-    return templates.TemplateResponse("admin/dashboard.html", {
-        "request": request,
+    return templates.TemplateResponse(request=request, name="admin/dashboard.html", context={
         "pending": pending,
         "logs": recent_logs,
         "stats": stats,
@@ -176,8 +173,7 @@ async def admin_review_cve(
     cve = db.query(CVE).filter(CVE.cve_id == cve_id).first()
     if not cve:
         raise HTTPException(status_code=404, detail="CVE not found")
-    return templates.TemplateResponse("admin/review.html", {
-        "request": request,
+    return templates.TemplateResponse(request=request, name="admin/review.html", context={
         "cve": cve,
         "username": username,
     })
@@ -322,8 +318,7 @@ async def ioc_lookup_page(
     result = None
     if q:
         result = await lookup_ioc(q, db)
-    return templates.TemplateResponse("ioc_lookup.html", {
-        "request": request,
+    return templates.TemplateResponse(request=request, name="ioc_lookup.html", context={
         "query": q or "",
         "result": result,
     })
