@@ -34,8 +34,18 @@ TIMEOUT          = 12.0
 
 # ─── IOC Type Detection ──────────────────────────────────────────────────────
 
+def _extract_domain(value: str) -> str:
+    """Extract domain from a URL or return the value as-is if already a domain."""
+    from urllib.parse import urlparse
+    if "://" in value:
+        parsed = urlparse(value)
+        return parsed.hostname or value
+    # Strip path if present (e.g. "example.com/path")
+    return value.split("/")[0].split("?")[0]
+
+
 def detect_ioc_type(value: str) -> Optional[str]:
-    """Detect the IOC type: ipv4, ipv6, md5, sha1, sha256, or None if unrecognised."""
+    """Detect the IOC type: ipv4, ipv6, md5, sha1, sha256, url, domain, or None."""
     v = value.strip()
     if re.match(r'^(\d{1,3}\.){3}\d{1,3}$', v):
         parts = v.split('.')
@@ -49,6 +59,10 @@ def detect_ioc_type(value: str) -> Optional[str]:
         return "sha1"
     if re.match(r'^[0-9a-fA-F]{32}$', v):
         return "md5"
+    if re.match(r'^https?://', v, re.IGNORECASE):
+        return "url"
+    if re.match(r'^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$', v):
+        return "domain"
     return None
 
 
@@ -452,7 +466,7 @@ async def lookup_ioc(value: str, db: Session) -> dict:
         return {
             "error": (
                 "Unrecognised format. Please enter a valid "
-                "IPv4 address, IPv6 address, MD5 hash, SHA1 hash, or SHA256 hash."
+                "IPv4 address, IPv6 address, MD5 hash, SHA1 hash, SHA256 hash, URL, or domain."
             )
         }
 
@@ -523,6 +537,42 @@ async def lookup_ioc(value: str, db: Session) -> dict:
         # first/last seen
         result["first_seen"] = otx.get("first_seen")
         result["last_seen"]  = otx.get("last_seen") or vt.get("last_analysis_date")
+
+    # ── URL / Domain lookup ─────────────────────────────────────────────
+    elif ioc_type in ("url", "domain"):
+        domain = _extract_domain(value) if ioc_type == "url" else value
+
+        otx = await _query_otx("domain", domain)
+        vt_domain = await _query_virustotal(f"domains/{domain}")
+
+        # Also check URL directly on VT if it's a full URL
+        if ioc_type == "url":
+            import base64
+            url_id = base64.urlsafe_b64encode(value.encode()).decode().rstrip("=")
+            vt_url = await _query_virustotal(f"urls/{url_id}")
+            result["sources"] = [otx, vt_domain, vt_url]
+        else:
+            result["sources"] = [otx, vt_domain]
+
+        for src in result["sources"]:
+            if src.get("is_malicious"):
+                result["is_malicious"] = True
+            if src.get("adversaries"):
+                result["threat_groups"].extend(src["adversaries"])
+            if src.get("malware_families"):
+                result["malware_families"].extend(src["malware_families"])
+            if src.get("attack_ids"):
+                result["attack_types"].extend(src["attack_ids"])
+            if src.get("industries_targeted"):
+                result["industries_targeted"].extend(src["industries_targeted"])
+            if src.get("tags"):
+                result["tags"].extend(src["tags"])
+
+        result["country"] = otx.get("country") or vt_domain.get("country")
+        result["asn"] = vt_domain.get("asn")
+        result["isp"] = vt_domain.get("as_owner")
+        result["first_seen"] = otx.get("first_seen")
+        result["last_seen"] = otx.get("last_seen") or vt_domain.get("last_analysis_date")
 
     # ── Hash lookup ───────────────────────────────────────────────────────
     else:

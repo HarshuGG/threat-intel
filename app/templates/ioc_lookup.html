@@ -12,7 +12,7 @@
   <i class="bi bi-crosshair2 text-danger fs-4"></i>
   <div>
     <h4 class="fw-bold mb-0 text-light">IOC Reputation Lookup</h4>
-    <p class="text-muted small mb-0">Check if an IP address or file hash is associated with malicious activity</p>
+    <p class="text-muted small mb-0">Check if an IP address, file hash, URL, or domain is associated with malicious activity</p>
   </div>
 </div>
 
@@ -21,13 +21,13 @@
   <form method="get" action="/ioc" class="row g-3 align-items-end">
     <div class="col-12 col-md-9">
       <label class="form-label text-muted small text-uppercase" style="letter-spacing:.08em">
-        <i class="bi bi-search"></i> Enter IPv4, IPv6, MD5, SHA1, or SHA256
+        <i class="bi bi-search"></i> Enter IPv4, IPv6, MD5, SHA1, SHA256, URL, or Domain
       </label>
       <input
         type="text"
         name="q"
         class="form-control form-control-lg"
-        placeholder="e.g. 185.220.101.45  or  d41d8cd98f00b204e9800998ecf8427e"
+        placeholder="e.g. 185.220.101.45  or  https://example.com  or  evil.com"
         value="{{ query }}"
         autofocus
         autocomplete="off"

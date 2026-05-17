@@ -331,7 +331,7 @@ async def ioc_lookup_page(
 
 @app.get("/api/ioc")
 async def api_ioc_lookup(
-    q: str = Query(..., description="IPv4, IPv6, MD5, SHA1, or SHA256 value"),
+    q: str = Query(..., description="IPv4, IPv6, MD5, SHA1, SHA256, URL, or domain"),
     db: Session = Depends(get_db),
 ):
     """REST endpoint for IOC reputation lookup."""
