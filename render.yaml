@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: threatlens
+    runtime: docker
+    plan: free
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: AI_PROVIDER
+        value: mock
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASS
+        sync: false
