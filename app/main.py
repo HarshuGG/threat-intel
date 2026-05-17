@@ -32,8 +32,25 @@ app = FastAPI(title=SITE_NAME, description=SITE_TAGLINE)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "app", "templates"))
+_jinja_templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "app", "templates"))
 
+
+def _render(request: Request, name: str, context: dict = None):
+    """Compat wrapper — works with both Starlette <1.0 and >=1.0."""
+    import inspect
+    sig = inspect.signature(_jinja_templates.TemplateResponse)
+    params = list(sig.parameters.keys())
+    ctx = context or {}
+    if params[0] == "request":
+        # Starlette >=1.0: TemplateResponse(request, name, context=...)
+        return _jinja_templates.TemplateResponse(request, name, context=ctx)
+    else:
+        # Starlette <1.0: TemplateResponse(name, {"request": request, ...})
+        ctx["request"] = request
+        return _jinja_templates.TemplateResponse(name, ctx)
+
+
+templates = _jinja_templates
 security = HTTPBasic()
 
 
@@ -82,7 +99,7 @@ async def homepage(request: Request, db: Session = Depends(get_db)):
         "cisa_kev": db.query(CVE).filter(CVE.status == "approved", CVE.cisa_kev == True).count(),
         "pending": db.query(CVE).filter(CVE.status == "pending").count(),
     }
-    return templates.TemplateResponse("index.html", {"request": request, "cves": recent, "stats": stats})
+    return _render(request, "index.html", {"cves": recent, "stats": stats})
 
 
 @app.get("/cves", response_class=HTMLResponse)
@@ -112,8 +129,8 @@ async def browse_cves(
     cves = q.order_by(CVE.published_date.desc()).offset((page - 1) * per_page).limit(per_page).all()
     total_pages = (total + per_page - 1) // per_page
 
-    return templates.TemplateResponse("cves.html", {
-        "request": request, "cves": cves, "total": total, "page": page,
+    return _render(request, "cves.html", {
+        "cves": cves, "total": total, "page": page,
         "total_pages": total_pages, "severity": severity, "search": search,
         "exploited": exploited, "cisa": cisa,
     })
@@ -124,7 +141,7 @@ async def cve_detail(request: Request, cve_id: str, db: Session = Depends(get_db
     cve = db.query(CVE).filter(CVE.cve_id == cve_id, CVE.status == "approved").first()
     if not cve:
         raise HTTPException(status_code=404, detail="CVE not found or not published")
-    return templates.TemplateResponse("cve_detail.html", {"request": request, "cve": cve})
+    return _render(request, "cve_detail.html", {"cve": cve})
 
 
 # ─── Admin Routes ────────────────────────────────────────────────────────────
@@ -147,8 +164,8 @@ async def admin_dashboard(
             CVE.status == "approved", CVE.enriched_at.is_(None)
         ).count(),
     }
-    return templates.TemplateResponse("admin/dashboard.html", {
-        "request": request, "pending": pending, "logs": recent_logs,
+    return _render(request, "admin/dashboard.html", {
+        "pending": pending, "logs": recent_logs,
         "stats": stats, "username": username,
     })
 
@@ -163,8 +180,8 @@ async def admin_review_cve(
     cve = db.query(CVE).filter(CVE.cve_id == cve_id).first()
     if not cve:
         raise HTTPException(status_code=404, detail="CVE not found")
-    return templates.TemplateResponse("admin/review.html", {
-        "request": request, "cve": cve, "username": username,
+    return _render(request, "admin/review.html", {
+        "cve": cve, "username": username,
     })
 
 
@@ -307,8 +324,8 @@ async def ioc_lookup_page(
     result = None
     if q:
         result = await lookup_ioc(q, db)
-    return templates.TemplateResponse("ioc_lookup.html", {
-        "request": request, "query": q or "", "result": result,
+    return _render(request, "ioc_lookup.html", {
+        "query": q or "", "result": result,
     })
 
 
