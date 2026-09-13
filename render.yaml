@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: threatlens
+    name: intelquarry
     runtime: docker
     plan: free
     envVars:

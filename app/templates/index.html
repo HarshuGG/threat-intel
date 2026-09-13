@@ -3,30 +3,23 @@
 
 {% block content %}
 
-<!-- Hero -->
-<div class="hero-banner rounded-3 mb-4 p-4 p-lg-5 d-flex align-items-center justify-content-between flex-wrap gap-3">
-  <div>
-    <div class="d-flex align-items-center gap-3 mb-2">
-      <i class="bi bi-shield-exclamation text-danger" style="font-size:2rem;filter:drop-shadow(0 0 8px rgba(239,68,68,.5))"></i>
-      <h1 class="display-6 fw-bold mb-0">{{ site_name }}</h1>
-    </div>
-    <p class="mb-1" style="color:var(--text-2);font-size:1.05rem;">{{ site_tagline }}</p>
-    <p style="color:var(--text-3);font-size:.8125rem;" class="mb-0">
-      <i class="bi bi-cpu me-1"></i>Auto-enriched · IOCs · MITRE ATT&amp;CK · Exploitation details
-    </p>
+<section class="quarry-hero mb-4">
+  <div class="hero-copy">
+    <div class="hero-context"><span class="context-line"></span> Your threat intelligence workspace</div>
+    <h1>Find the signal.<br>Understand the threat.</h1>
+    <p>Dig into vulnerabilities, investigate indicators, and connect the evidence that matters.</p>
+    <form action="/cves" method="get" class="hero-search">
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <input type="search" name="search" aria-label="Search CVEs, products, or keywords" placeholder="Search a CVE, product, or keyword" required>
+      <button class="btn btn-primary" type="submit">Explore</button>
+    </form>
+    <div class="hero-links"><a href="/ioc">Investigate an IOC</a></div>
   </div>
-  <div class="d-flex gap-2 flex-wrap">
-    <a href="/cves?exploited=true" class="btn btn-danger">
-      <i class="bi bi-exclamation-triangle me-1"></i>Actively Exploited
-    </a>
-    <a href="/cves?cisa=true" class="btn btn-outline-info">
-      <i class="bi bi-shield-fill-check me-1"></i>CISA KEV
-    </a>
-    <a href="/cves" class="btn btn-outline-secondary">
-      Browse All CVEs
-    </a>
+  <div class="quarry-art" aria-hidden="true">
+    <svg viewBox="0 0 360 330" fill="none"><path d="m180 18 150 86v122l-150 86L30 226V104Z" stroke="#416078"/><path d="m180 55 118 68v84l-118 68-118-68v-84Z" stroke="#5c7e95"/><path d="m180 91 86 49v49l-86 49-86-49v-49Z" stroke="#8ec7e8"/><path d="m180 127 55 32-55 32-55-32Z" fill="#8ec7e8"/><path d="m125 159 55 32v44l-55-32Z" fill="#527d9a"/><path d="m180 191 55-32v44l-55 32Z" fill="#daaa80"/><path d="M180 18v73M330 226l-64-37M30 226l64-37" stroke="#416078"/><circle cx="180" cy="18" r="4" fill="#daaa80"/><circle cx="330" cy="226" r="4" fill="#8ec7e8"/><circle cx="30" cy="226" r="4" fill="#8ec7e8"/></svg>
+    <div class="art-caption">Raw data. Clear intelligence.</div>
   </div>
-</div>
+</section>
 
 <!-- Stats Row -->
 <div class="row g-3 mb-4">
@@ -41,7 +34,7 @@
   {% for val, label, border_cls, text_cls in stat_items %}
   <div class="col-6 col-md-4 col-lg-2">
     <div class="stat-card {{ border_cls }} text-center rounded-3 p-3">
-      <div class="fs-2 fw-bold {{ text_cls }} count-up" data-target="{{ val }}">0</div>
+      <div class="fs-2 fw-bold {{ text_cls }} " >{{ "{:,}".format(val) }}</div>
       <div class="small" style="color:var(--text-3)">{{ label }}</div>
     </div>
   </div>
@@ -51,9 +44,9 @@
 <!-- Recent CVEs -->
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="mb-0 fw-semibold">
-    <i class="bi bi-clock-history text-info me-2"></i>Latest CVEs
+    <i class="bi bi-clock-history text-info me-2"></i>Latest intelligence
   </h5>
-  <a href="/cves" class="btn btn-sm btn-outline-secondary">View All →</a>
+  <a href="/cves" class="btn btn-sm btn-outline-secondary">Browse all CVEs</a>
 </div>
 
 {% if cves %}
@@ -112,27 +105,9 @@
 {% else %}
 <div class="text-center py-5" style="color:var(--text-3)">
   <i class="bi bi-database-x fs-1 d-block mb-3"></i>
-  <p class="mb-3">No CVEs yet — the crawler will populate data shortly.</p>
-  <a href="/admin" class="btn btn-sm btn-outline-danger">Go to Admin →</a>
+  <p class="mb-3">Your intelligence library starts here. Approved CVEs will appear after collection and review.</p>
+  <a href="/admin" class="btn btn-sm btn-outline-danger">Open review dashboard</a>
 </div>
 {% endif %}
 
-{% endblock %}
-
-{% block scripts %}
-<script>
-// Animated count-up for stat cards
-document.querySelectorAll('.count-up').forEach(el => {
-  const target = parseInt(el.dataset.target, 10) || 0;
-  if (target === 0) { el.textContent = '0'; return; }
-  const dur = 900, step = 16;
-  const inc = target / (dur / step);
-  let cur = 0;
-  const timer = setInterval(() => {
-    cur = Math.min(cur + inc, target);
-    el.textContent = Math.floor(cur).toLocaleString();
-    if (cur >= target) clearInterval(timer);
-  }, step);
-});
-</script>
 {% endblock %}

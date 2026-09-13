@@ -1,5 +1,5 @@
 """
-ThreatLens — entry point
+IntelQuarry — entry point
 Usage: python run.py
 """
 import uvicorn

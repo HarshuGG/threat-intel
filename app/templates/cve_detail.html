@@ -21,12 +21,6 @@
       {% if cve.cvss_score %}
       <span class="badge bg-dark" style="font-size:.8rem;padding:.35rem .65rem;">CVSS {{ "%.1f"|format(cve.cvss_score) }}</span>
       {% endif %}
-      {% if cve.exploited_in_wild %}
-      <span class="badge bg-danger" style="font-size:.8rem;padding:.35rem .65rem;"><i class="bi bi-lightning-fill me-1"></i>Actively Exploited</span>
-      {% endif %}
-      {% if cve.cisa_kev %}
-      <span class="badge bg-info" style="font-size:.8rem;padding:.35rem .65rem;"><i class="bi bi-shield-fill-check me-1"></i>CISA KEV</span>
-      {% endif %}
       {% if cve.poc_available %}
       <span class="badge bg-warning" style="font-size:.8rem;padding:.35rem .65rem;"><i class="bi bi-code-slash me-1"></i>PoC Available</span>
       {% endif %}
@@ -308,11 +302,11 @@
         <a href="https://nvd.nist.gov/vuln/detail/{{ cve.cve_id }}" target="_blank" class="btn btn-sm btn-outline-secondary">
           <i class="bi bi-box-arrow-up-right me-1"></i>NVD Entry
         </a>
-        <a href="https://github.com/search?q={{ cve.cve_id }}&type=repositories" target="_blank" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-github me-1"></i>GitHub
+        <a href="https://www.bleepingcomputer.com/search/?q={{ cve.cve_id | urlencode }}&amp;cx=partner-pub-0920899300397823%3A3529943228&amp;cof=FORID%3A10&amp;ie=UTF-8" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-newspaper me-1"></i>BleepingComputer
         </a>
-        <a href="https://www.exploit-db.com/search?cve={{ cve.cve_id[4:] }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-terminal me-1"></i>Exploit-DB
+        <a href="https://www.google.com/cse?q={{ cve.cve_id | urlencode }}&amp;cx=017931741230951650006%3Apksj3nwgyw4" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-newspaper me-1"></i>The Hacker News
         </a>
       </div>
     </div>

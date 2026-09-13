@@ -13,7 +13,7 @@
 <!-- Filters -->
 <div class="section-card mb-4 p-3">
   <form method="get" action="/cves" class="row g-2 align-items-end">
-    <div class="col-12 col-md-5">
+    <div class="col-12 col-md-7">
       <label class="form-label small mb-1">Search</label>
       <input type="text" class="form-control form-control-sm" name="search"
              value="{{ search or '' }}" placeholder="CVE ID, keyword, product…">
@@ -26,18 +26,6 @@
         <option value="{{ s }}" {% if severity == s %}selected{% endif %}>{{ s }}</option>
         {% endfor %}
       </select>
-    </div>
-    <div class="col-6 col-md-2">
-      <div class="d-flex flex-column gap-2 pt-1">
-        <div class="form-check mb-0">
-          <input class="form-check-input" type="checkbox" name="exploited" value="true" id="chkExploited" {% if exploited %}checked{% endif %}>
-          <label class="form-check-label small" for="chkExploited">Exploited in Wild</label>
-        </div>
-        <div class="form-check mb-0">
-          <input class="form-check-input" type="checkbox" name="cisa" value="true" id="chkCisa" {% if cisa %}checked{% endif %}>
-          <label class="form-check-label small" for="chkCisa">CISA KEV Only</label>
-        </div>
-      </div>
     </div>
     <div class="col-12 col-md-3 d-flex gap-2">
       <button type="submit" class="btn btn-sm btn-primary flex-fill">
@@ -55,9 +43,6 @@
   <a href="/cves?severity=HIGH"     class="btn btn-sm {% if severity=='HIGH' %}btn-warning{% else %}btn-outline-warning{% endif %}"      style="border-radius:20px;font-size:.78rem;padding:.25rem .75rem;">High</a>
   <a href="/cves?severity=MEDIUM"   class="btn btn-sm {% if severity=='MEDIUM' %}btn-info{% else %}btn-outline-info{% endif %}"          style="border-radius:20px;font-size:.78rem;padding:.25rem .75rem;">Medium</a>
   <a href="/cves?severity=LOW"      class="btn btn-sm {% if severity=='LOW' %}btn-success{% else %}btn-outline-success{% endif %}"       style="border-radius:20px;font-size:.78rem;padding:.25rem .75rem;">Low</a>
-  <a href="/cves?exploited=true"    class="btn btn-sm {% if exploited %}btn-danger{% else %}btn-outline-danger{% endif %}"               style="border-radius:20px;font-size:.78rem;padding:.25rem .75rem;">
-    <i class="bi bi-lightning-fill me-1"></i>Exploited
-  </a>
 </div>
 
 <!-- CVE Table -->

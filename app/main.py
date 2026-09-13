@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "changeme")
-SITE_NAME = os.getenv("SITE_NAME", "ThreatLens")
+SITE_NAME = os.getenv("SITE_NAME", "IntelQuarry")
 SITE_TAGLINE = os.getenv("SITE_TAGLINE", "CVE Intelligence for Threat Hunters")
 
 app = FastAPI(title=SITE_NAME, description=SITE_TAGLINE)

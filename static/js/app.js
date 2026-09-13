@@ -1,4 +1,4 @@
-// ThreatLens — frontend helpers
+// IntelQuarry — frontend helpers
 
 // Auto-refresh admin page every 60s
 if (window.location.pathname === '/admin') {
