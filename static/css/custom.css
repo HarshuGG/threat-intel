@@ -394,7 +394,7 @@ main { min-height:70vh; }
 .hero-links a:hover { color:white; }
 .hero-links i { font-size:.65rem; margin-left:.25rem; }
 .quarry-art { align-self:center; text-align:center; }
-.quarry-art svg { width:100%; max-width:330px; }
+.quarry-art svg { width:200px; max-width:100%; height:auto; }
 .art-caption { color:var(--text-3); font-size:.75rem; margin-top:.8rem; }
 .btn-primary { background:#8ec7e8; border-color:#8ec7e8; color:#122235; box-shadow:none; font-weight:700; }
 .btn-primary:hover { background:#b6ddf3; border-color:#b6ddf3; color:#122235; box-shadow:none; transform:none; }
