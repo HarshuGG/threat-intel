@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Review new CVEs — {{ site_name }}{% endblock %}
+{% block content %}
+<div class="mx-auto" style="max-width:900px;">
+  <div class="mb-4">
+    <div class="small text-info text-uppercase mb-2">Private review link</div>
+    <h1 class="h3">New CVEs from the latest crawl</h1>
+    <p style="color:var(--text-3);">Approve findings to publish them on IntelQuarry, or reject them to keep them private. This link expires {{ batch.expires_at.strftime('%Y-%m-%d') }}.</p>
+  </div>
+  {% for cve in cves %}
+  <article class="section-card rounded-3 p-4 mb-3">
+    <div class="d-flex justify-content-between gap-3 flex-wrap">
+      <div>
+        <div class="mono fw-semibold" style="color:var(--cyan);">{{ cve.cve_id }}</div>
+        <div class="mt-2"><span class="badge bg-{{ severity_color(cve.severity) }}">{{ cve.severity or 'N/A' }}</span>{% if cve.cvss_score %}<span class="badge bg-dark ms-1">CVSS {{ "%.1f"|format(cve.cvss_score) }}</span>{% endif %}</div>
+      </div>
+      <div>
+        {% if cve.status == 'pending' %}
+        <form class="d-inline" method="post" action="/review/email/{{ batch.token }}/approve/{{ cve.cve_id }}"><button class="btn btn-success">Approve</button></form>
+        <form class="d-inline ms-1" method="post" action="/review/email/{{ batch.token }}/reject/{{ cve.cve_id }}"><button class="btn btn-outline-danger">Reject</button></form>
+        {% else %}
+        <span class="badge bg-{{ 'success' if cve.status == 'approved' else 'secondary' }} text-uppercase">{{ cve.status }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <p class="mb-0 mt-3" style="color:var(--text-2);line-height:1.65;">{{ cve.description or 'No description available.' }}</p>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -21,3 +21,7 @@ jobs:
       - run: python scripts/crawl_once.py
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          APPROVAL_FROM_EMAIL: ${{ secrets.APPROVAL_FROM_EMAIL }}
+          APPROVAL_RECIPIENT_EMAIL: ${{ secrets.APPROVAL_RECIPIENT_EMAIL }}
+          APPROVAL_BASE_URL: https://intelquarry.com

@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.database import engine, init_db, SessionLocal, CrawlLog
 from app.crawler import crawl_nvd, crawl_cisa_kev
+from app.notifications import send_crawl_review_email
 
 async def main():
     if engine.dialect.name != 'postgresql':
@@ -13,13 +14,18 @@ async def main():
     init_db()
     with SessionLocal() as db:
         failed = False
+        new_cve_ids = []
         for name, task in [('NVD', lambda: crawl_nvd(db, days_back=2)), ('CISA KEV', lambda: crawl_cisa_kev(db))]:
             result = await task()
+            new_cve_ids.extend(result.get('new_ids', []))
             last = db.query(CrawlLog).order_by(CrawlLog.id.desc()).first()
             failed = failed or bool(result.get('errors')) or (last is not None and last.status == 'failed')
             print(f'{name}: new={result["new"]}, updated={result["updated"]}, errors={result["errors"]}')
         if failed:
             raise RuntimeError('One or more crawl sources failed')
+        if new_cve_ids:
+            notified = send_crawl_review_email(db, new_cve_ids)
+            print(f'Email review notification: {"sent" if notified else "not configured"}')
 
 if __name__ == '__main__':
     try:

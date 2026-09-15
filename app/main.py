@@ -12,7 +12,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from .database import get_db, init_db, CVE, CrawlLog
+from .database import get_db, init_db, CVE, CrawlLog, EmailReviewBatch
 from .crawler import crawl_nvd, crawl_cisa_kev
 from .enricher import enrich_cve, enrich_pending
 from .scheduler import setup_scheduler
@@ -142,6 +142,45 @@ async def cve_detail(request: Request, cve_id: str, db: Session = Depends(get_db
     if not cve:
         raise HTTPException(status_code=404, detail="CVE not found or not published")
     return _render(request, "cve_detail.html", {"cve": cve})
+
+
+def _email_review_batch(token: str, db: Session) -> EmailReviewBatch:
+    batch = (db.query(EmailReviewBatch)
+             .filter(EmailReviewBatch.token == token, EmailReviewBatch.expires_at > datetime.utcnow())
+             .first())
+    if not batch:
+        raise HTTPException(status_code=404, detail="This review link is invalid or has expired")
+    return batch
+
+
+@app.get("/review/email/{token}", response_class=HTMLResponse)
+async def email_review_page(request: Request, token: str, db: Session = Depends(get_db)):
+    batch = _email_review_batch(token, db)
+    cves = (db.query(CVE).filter(CVE.cve_id.in_(batch.cve_ids))
+            .order_by(CVE.published_date.desc()).all())
+    return _render(request, "email_review.html", {"batch": batch, "cves": cves})
+
+
+@app.post("/review/email/{token}/{decision}/{cve_id}")
+async def email_review_decision(
+    token: str,
+    decision: str,
+    cve_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    batch = _email_review_batch(token, db)
+    if decision not in {"approve", "reject"} or cve_id not in batch.cve_ids:
+        raise HTTPException(status_code=400, detail="Invalid review action")
+    cve = db.query(CVE).filter(CVE.cve_id == cve_id).first()
+    if not cve:
+        raise HTTPException(status_code=404, detail="CVE not found")
+    cve.status = "approved" if decision == "approve" else "rejected"
+    cve.reviewed_at = datetime.utcnow()
+    db.commit()
+    if decision == "approve" and not cve.enriched_at:
+        background_tasks.add_task(enrich_cve, cve, db)
+    return RedirectResponse(url=f"/review/email/{token}", status_code=303)
 
 
 # ─── Admin Routes ────────────────────────────────────────────────────────────

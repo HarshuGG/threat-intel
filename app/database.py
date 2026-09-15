@@ -76,6 +76,19 @@ class CrawlLog(Base):
     message = Column(Text)
 
 
+class EmailReviewBatch(Base):
+    """One-time capability used by a crawl notification email."""
+    __tablename__ = "email_review_batches"
+
+    id = Column(Integer, primary_key=True)
+    token = Column(String, unique=True, index=True, nullable=False)
+    cve_ids = Column(JSON, nullable=False)
+    recipient = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime, default=datetime.utcnow)
+
+
 def get_db():
     db = SessionLocal()
     try:
