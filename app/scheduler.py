@@ -44,6 +44,9 @@ async def _run_full_pipeline():
 def setup_scheduler(app):
     """Attach scheduler to FastAPI app lifecycle."""
 
+    if os.getenv("ENABLE_SCHEDULER", "true").lower() != "true":
+        return
+
     @app.on_event("startup")
     async def start_scheduler():
         scheduler.add_job(
