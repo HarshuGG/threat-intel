@@ -108,7 +108,7 @@ async def crawl_nvd(db: Session, days_back: int = 1) -> dict:
     db.add(log)
     db.commit()
 
-    stats = {"new": 0, "updated": 0, "errors": 0, "new_ids": []}
+    stats = {"new": 0, "updated": 0, "errors": 0}
 
     try:
         end_date = datetime.utcnow()
@@ -146,7 +146,6 @@ async def crawl_nvd(db: Session, days_back: int = 1) -> dict:
                             cve_obj = CVE(**parsed)
                             db.add(cve_obj)
                             stats["new"] += 1
-                            stats["new_ids"].append(parsed["cve_id"])
                     except Exception as e:
                         logger.error(f"Error processing CVE item: {e}")
                         stats["errors"] += 1
@@ -182,7 +181,7 @@ async def crawl_cisa_kev(db: Session) -> dict:
     db.add(log)
     db.commit()
 
-    stats = {"new": 0, "updated": 0, "errors": 0, "new_ids": []}
+    stats = {"new": 0, "updated": 0, "errors": 0}
 
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -237,7 +236,6 @@ async def crawl_cisa_kev(db: Session) -> dict:
                     )
                     db.add(cve_obj)
                     stats["new"] += 1
-                    stats["new_ids"].append(cve_id)
 
             except Exception as e:
                 logger.error(f"Error processing CISA KEV entry: {e}")
